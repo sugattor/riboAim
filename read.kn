@@ -1,0 +1,125 @@
+const fileName: []char :: "ribo.txt"
+
+func main()
+	class Data() {金額,内訳,加算可否を持つモデル(アクセサー付)}
+		var price: int
+		var detail: []char
+		var status: bool
+		
+		+func setPrice(p: int)
+			do me.price :: p
+		end func
+		+func setDetail(d: []char)
+			do me.detail :: d
+		end func
+		+func setEnable(s: bool)
+			do me.status :: s
+		end func
+		
+		+func getPrice(): int
+			ret me.price
+		end func
+		+func getDetail(): []char
+			ret me.detail
+		end func
+		+func isEnable(): bool
+			ret me.status
+		end func
+	end class
+	
+	;ファイルの存在確認
+	if(!file@exist(@fileName))
+		do cui@print(@fileName ~ " : ファイルが開けませんでした")
+		ret
+	end if
+	
+	;ファイルから読み込んでリスト化する
+	var record: [][]char
+	var reader: file@Reader :: file@makeReader(@fileName)
+	var dataList: list<Data> :: #list<Data>
+	while(!reader.term())
+		do record :: reader.readLine().split("\t") {record[5]に金額,record[2]に内訳が入る}
+		var price: int
+		do record[5].replace(",", "").toInt(&price)
+		;do cui@print(record[5] ~ ":\t" ~ record[2] ~ "\n") {配列に代入されているかチェック}
+		;do cui@print(price.toStr() ~ "\n") {priceに代入されているかチェック}
+		var data: Data :: #Data
+		do data.setPrice(price)
+		do data.setDetail(record[2])
+		do dataList.add(data)
+	end while
+	
+	;リストを配列に変換する
+	var dataArray: []Data :: dataList.toArray()
+	
+	;ここら辺で目標金額を入力させる
+	do cui@print("目標金額を入力してください(例:30001)\n")
+	var aim: int :: 30001
+	do cui@input().toInt(&aim)
+	
+	;結果を入れとくやつ
+	var resultArray: []Data
+	var resultTotal: int :: 0 {resultTotalが0の時マッチしないこととする}
+	
+	;2進数の全通りを試すループ(全部falseは0なので1からスタート)
+	for i(1, 2 ^ (^dataArray) - 1) { 1 .. 2の(dataArrayの個数)乗-1 }
+		
+		;加算するか否かを決める
+		for j(0, (^dataArray) - 1) { 0 .. 個数-1 }
+			if(i % (2 ^ (j + 1)) >= 2 ^ j)
+				do dataArray[j].setEnable(true)
+			else
+				do dataArray[j].setEnable(false)
+			end if
+		end for
+		
+		;trueのみ足した合計値を算出
+		var total: int :: 0
+		for k(0, (^dataArray) - 1)
+			if(dataArray[k].isEnable())
+				do total :+ dataArray[k].getPrice()
+			end if
+			;目標値を下回らず今までの合計を超えた時点でskipする
+			if(total >= aim & (total >= resultTotal & resultTotal <> 0))
+				skip i
+			end if
+		end for
+		;do cui@print(total.toStr() ~ "\n") {合計値の出力}
+		
+		;目標値を下回らず、かつ今までの合計より低い金額の時、それを保持する
+		if(total >= aim & (total < resultTotal | resultTotal = 0))
+			do resultTotal :: total
+			do resultArray :: ##dataArray
+		end if
+		
+		;目標値ぴったりならばそこで終わらせる
+		if(resultTotal = aim)
+			break i
+		end if
+		
+	end for
+	
+	;結果を表示(どれを選ぶのか・合計いくらか)
+	
+	;マッチしなかった(resultTotalが0のとき)
+	if(resultTotal = 0)
+		do cui@print("目標値に達することができませんでした\n")
+		do cui@print("\nEnterキーで終了します")
+		do cui@input()
+		ret
+	end if
+	
+	do cui@print("\n合計: " ~ resultTotal.toStr() ~ " 円\n\n")
+	
+	for r(0, (^resultArray) - 1)
+		if(resultArray[r].isEnable())
+			do cui@print(
+			|resultArray[r].getPrice().toStrFmt("7d") ~ "\t"
+			|~resultArray[r].getDetail() ~ "\n")
+		end if
+	end for
+	
+	do cui@print("\nEnterキーで終了します")
+	do cui@input()
+	
+end func
